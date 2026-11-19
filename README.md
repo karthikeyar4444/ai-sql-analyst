@@ -1,7 +1,7 @@
 # AI SQL Analyst
 
 Ask business questions about **100K real e-commerce orders in plain English**. The assistant
-writes the SQL with an LLM, checks it is safe, runs it **read-only**, fixes its own mistakes,
+writes the SQL with an LLM (Google Gemini — free tier — or OpenAI), checks it is safe, runs it **read-only**, fixes its own mistakes,
 and returns a table, a chart and a one-line answer.
 
 Accuracy is **measured, not assumed**: a 50-question benchmark with hand-written gold SQL
@@ -21,7 +21,7 @@ scores every answer by comparing query results.
   │ Prompt = schema + example      │  db.describe_schema(): tables, columns,
   │ values + business notes        │  row counts, sample values, join hints
   └───────────────────────────────┘
-                 │  OpenAI chat model
+                 │  Gemini or OpenAI chat model
                  ▼
   ┌───────────────────────────────┐
   │ Safety guard                   │  only ONE SELECT/WITH · blocks DROP/DELETE/
@@ -39,7 +39,7 @@ scores every answer by comparing query results.
 
 ## Results
 
-> Fill in from `eval/results/summary_openai.json` after running the benchmark on the real data.
+> Fill in from `eval/results/summary_api.json` after running the benchmark on the real data.
 
 | Metric | Value |
 |---|---|
@@ -71,7 +71,7 @@ differ — the numbers must be right.
 
 ```bash
 python eval/run_eval.py --llm gold     # sanity check: benchmark itself scores 100%
-python eval/run_eval.py                # real run with OpenAI
+python eval/run_eval.py                # real run with your Gemini/OpenAI key
 python eval/run_eval.py --sleep 6      # on a free-tier API (e.g. Gemini) to stay under rate limits
 ```
 
@@ -86,6 +86,7 @@ pip install -r requirements.txt
 python scripts/build_db.py --csv-dir ~/Downloads/olist
 
 # 2. API key: create .env (never commit it)
+#    free Gemini key: https://aistudio.google.com/apikey  (or use an OpenAI key)
 cp .env.example .env        # then paste your key into .env (OpenAI, or a free Gemini key - see .env.example)
 
 # 3. run
@@ -102,7 +103,7 @@ ai-sql-analyst/
 ├── src/aisql/
 │   ├── db.py                 # build SQLite from CSVs, read-only connection, schema text
 │   ├── safety.py             # SQL validator + row limit
-│   ├── llm.py                # OpenAI backend
+│   ├── llm.py                # Gemini / OpenAI backend with rate-limit retries
 │   └── engine.py             # question → SQL → safe run → self-correction → answer
 ├── eval/
 │   ├── questions.py          # 50 benchmark questions + gold SQL

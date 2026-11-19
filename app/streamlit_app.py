@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from aisql.engine import SQLAnalyst  # noqa: E402
-from aisql.llm import OpenAILLM  # noqa: E402
+from aisql.llm import ChatLLM  # noqa: E402
 
 try:
     from dotenv import load_dotenv
@@ -22,7 +22,7 @@ try:
 except ImportError:
     pass
 # Streamlit Cloud: secrets -> environment
-for key in ("OPENAI_API_KEY", "OPENAI_MODEL"):
+for key in ("GEMINI_API_KEY", "OPENAI_API_KEY", "LLM_MODEL"):
     try:
         if key not in os.environ and key in st.secrets:
             os.environ[key] = st.secrets[key]
@@ -43,7 +43,7 @@ st.set_page_config(page_title="AI SQL Analyst", page_icon="🔎", layout="wide")
 
 @st.cache_resource
 def get_analyst() -> SQLAnalyst:
-    return SQLAnalyst(DB_PATH, OpenAILLM())
+    return SQLAnalyst(DB_PATH, ChatLLM())
 
 
 def auto_chart(df: pd.DataFrame):
@@ -88,8 +88,8 @@ st.caption("Ask questions about 100K Brazilian e-commerce orders (Olist, 2016–
 if not Path(DB_PATH).exists():
     st.error(f"Database not found at {DB_PATH}. Run `python scripts/build_db.py --csv-dir <olist folder>` first.")
     st.stop()
-if not os.getenv("OPENAI_API_KEY"):
-    st.error("OPENAI_API_KEY is not set. Add it to a `.env` file (see README).")
+if not (os.getenv("GEMINI_API_KEY") or os.getenv("OPENAI_API_KEY")):
+    st.error("No API key found. Add GEMINI_API_KEY (free) or OPENAI_API_KEY to a `.env` file (see README).")
     st.stop()
 
 analyst = get_analyst()
@@ -103,6 +103,7 @@ with st.sidebar:
     summarize = st.toggle("Write a plain-English answer", value=True)
     with st.expander("Database schema"):
         st.text(analyst.schema)
+    st.caption(f"Model: {analyst.llm.provider} · {analyst.llm.model}")
     if st.button("Clear chat"):
         st.session_state.history = []
 

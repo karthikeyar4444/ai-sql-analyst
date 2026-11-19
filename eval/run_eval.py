@@ -5,7 +5,7 @@ same number of rows, and every gold column has a matching column in the predicti
 (same values after rounding, compared order-insensitively). Extra columns and different
 column names are allowed - what matters is that the numbers are right.
 
-    python eval/run_eval.py                     # real run with OpenAI (needs OPENAI_API_KEY)
+    python eval/run_eval.py                     # real run (Gemini or OpenAI key from .env)
     python eval/run_eval.py --llm gold          # sanity check: every gold query runs and scores 100%
 """
 from __future__ import annotations
@@ -59,8 +59,9 @@ class GoldLLM:
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--db", default="data/olist.db")
-    p.add_argument("--llm", choices=["openai", "gold"], default="openai")
-    p.add_argument("--model", default=None, help="OpenAI model name (default: OPENAI_MODEL or gpt-4o-mini)")
+    p.add_argument("--llm", choices=["api", "gold"], default="api",
+                   help="api = Gemini or OpenAI (whichever key is in .env); gold = benchmark self-check")
+    p.add_argument("--model", default=None, help="model id (default: LLM_MODEL or the provider default)")
     p.add_argument("--out", default="eval/results")
     p.add_argument("--sleep", type=float, default=0.0,
                    help="seconds to wait between questions (use ~6 on free-tier APIs to avoid rate limits)")
@@ -74,8 +75,8 @@ def main() -> None:
             load_dotenv()
         except ImportError:
             pass
-        from aisql.llm import OpenAILLM
-        llm = OpenAILLM(model=a.model)
+        from aisql.llm import ChatLLM
+        llm = ChatLLM(model=a.model)
 
     analyst = SQLAnalyst(a.db, llm)
     rows = []
@@ -94,7 +95,7 @@ def main() -> None:
     df = pd.DataFrame(rows)
     by_level = df.groupby("difficulty")["correct"].agg(["sum", "count"])
     summary = {
-        "model": getattr(llm, "model", a.llm),
+        "model": f"{getattr(llm, 'provider', a.llm)} / {getattr(llm, 'model', a.llm)}",
         "questions": len(df),
         "accuracy_pct": round(100 * df["correct"].mean(), 1),
         "by_difficulty_pct": {k: round(100 * r["sum"] / r["count"], 1) for k, r in by_level.iterrows()},
