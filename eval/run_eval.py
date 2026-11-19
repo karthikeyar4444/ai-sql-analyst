@@ -62,6 +62,8 @@ def main() -> None:
     p.add_argument("--llm", choices=["openai", "gold"], default="openai")
     p.add_argument("--model", default=None, help="OpenAI model name (default: OPENAI_MODEL or gpt-4o-mini)")
     p.add_argument("--out", default="eval/results")
+    p.add_argument("--sleep", type=float, default=0.0,
+                   help="seconds to wait between questions (use ~6 on free-tier APIs to avoid rate limits)")
     a = p.parse_args()
 
     if a.llm == "gold":
@@ -86,6 +88,8 @@ def main() -> None:
                      "attempts": ans.attempts, "seconds": ans.seconds,
                      "error": ans.error, "generated_sql": ans.sql, "gold_sql": gold_sql})
         print(f"[{i:02d}] {'PASS' if ok else 'FAIL'}  ({level:<6}) {question}")
+        if a.sleep:
+            time.sleep(a.sleep)
 
     df = pd.DataFrame(rows)
     by_level = df.groupby("difficulty")["correct"].agg(["sum", "count"])

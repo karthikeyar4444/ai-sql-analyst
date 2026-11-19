@@ -7,7 +7,7 @@ and returns a table, a chart and a one-line answer.
 Accuracy is **measured, not assumed**: a 50-question benchmark with hand-written gold SQL
 scores every answer by comparing query results.
 
-**Stack:** Python · SQLite · SQL · OpenAI API · Streamlit · Plotly · pytest
+**Stack:** Python · SQLite · SQL · OpenAI API (or Gemini via its OpenAI-compatible endpoint) · Streamlit · Plotly · pytest
 
 ---
 
@@ -72,6 +72,7 @@ differ — the numbers must be right.
 ```bash
 python eval/run_eval.py --llm gold     # sanity check: benchmark itself scores 100%
 python eval/run_eval.py                # real run with OpenAI
+python eval/run_eval.py --sleep 6      # on a free-tier API (e.g. Gemini) to stay under rate limits
 ```
 
 ## Setup
@@ -85,7 +86,7 @@ pip install -r requirements.txt
 python scripts/build_db.py --csv-dir ~/Downloads/olist
 
 # 2. API key: create .env (never commit it)
-cp .env.example .env        # then paste your key into .env
+cp .env.example .env        # then paste your key into .env (OpenAI, or a free Gemini key - see .env.example)
 
 # 3. run
 streamlit run app/streamlit_app.py
