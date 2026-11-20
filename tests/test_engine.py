@@ -105,3 +105,34 @@ def test_scorer_accepts_renamed_columns_and_rejects_wrong_numbers():
     assert results_match(gold, pd.DataFrame({"customer_state": ["RJ", "SP"], "total": [50.0, 100.0], "x": [1, 2]}))
     assert not results_match(gold, pd.DataFrame({"state": ["SP", "RJ"], "revenue": [100.0, 51.0]}))
     assert not results_match(gold, pd.DataFrame({"state": ["SP"], "revenue": [100.0]}))
+
+
+# ---------------------------------------------------------------- providers
+def test_gemini_message_format_and_key_cleanup():
+    from aisql.llm import GeminiLLM
+    llm = GeminiLLM(' "AQ.test-key" ')
+    assert llm.api_key == "AQ.test-key"
+    body = llm._to_gemini([{"role": "system", "content": "S"}, {"role": "user", "content": "Q"},
+                           {"role": "assistant", "content": "A"}, {"role": "user", "content": "fix"}])
+    assert body["systemInstruction"]["parts"][0]["text"] == "S"
+    assert [c["role"] for c in body["contents"]] == ["user", "model", "user"]
+
+
+def test_provider_errors_become_friendly_answers(db):
+    from aisql.llm import LLMError
+
+    class Broken:
+        def complete(self, messages):
+            raise LLMError("Gemini rejected the request (400)")
+
+    ans = SQLAnalyst(db, Broken()).ask("anything")
+    assert not ans.ok and "rejected" in ans.error
+
+
+def test_groq_is_preferred_when_its_key_is_set(monkeypatch):
+    pytest.importorskip("openai")
+    from aisql.llm import ChatLLM
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_test")
+    monkeypatch.setenv("GEMINI_API_KEY", "AQ.test")
+    llm = ChatLLM()
+    assert llm.provider == "groq" and "groq.com" in str(llm.client.base_url)

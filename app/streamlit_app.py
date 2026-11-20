@@ -22,7 +22,7 @@ try:
 except ImportError:
     pass
 # Streamlit Cloud: secrets -> environment
-for key in ("GEMINI_API_KEY", "OPENAI_API_KEY", "LLM_MODEL"):
+for key in ("GROQ_API_KEY", "GEMINI_API_KEY", "OPENAI_API_KEY", "LLM_MODEL"):
     try:
         if key not in os.environ and key in st.secrets:
             os.environ[key] = st.secrets[key]
@@ -55,7 +55,8 @@ def auto_chart(df: pd.DataFrame):
     if not num_cols:
         return None
     x = label_cols[0] if label_cols else df.columns[0]
-    y = num_cols[-1] if num_cols[-1] != x else num_cols[0]
+    # first numeric column is usually the answer (counts like review_count tend to come after)
+    y = num_cols[0] if num_cols[0] != x else num_cols[-1]
     is_time = any(k in str(x).lower() for k in ("month", "year", "date", "hour", "week", "day"))
     if is_time:
         return px.line(df, x=x, y=y, markers=True)
@@ -64,7 +65,7 @@ def auto_chart(df: pd.DataFrame):
 
 def render(ans) -> None:
     if ans.summary:
-        st.markdown(ans.summary)
+        st.markdown(ans.summary.replace("$", r"\$"))  # stop "$" from being read as math
     if not ans.ok:
         st.error(f"Couldn't answer that: {ans.error}")
     else:
@@ -88,8 +89,8 @@ st.caption("Ask questions about 100K Brazilian e-commerce orders (Olist, 2016–
 if not Path(DB_PATH).exists():
     st.error(f"Database not found at {DB_PATH}. Run `python scripts/build_db.py --csv-dir <olist folder>` first.")
     st.stop()
-if not (os.getenv("GEMINI_API_KEY") or os.getenv("OPENAI_API_KEY")):
-    st.error("No API key found. Add GEMINI_API_KEY (free) or OPENAI_API_KEY to a `.env` file (see README).")
+if not any(os.getenv(k) for k in ("GROQ_API_KEY", "GEMINI_API_KEY", "OPENAI_API_KEY")):
+    st.error("No API key found. Add GROQ_API_KEY (free) to a `.env` file (see README).")
     st.stop()
 
 analyst = get_analyst()

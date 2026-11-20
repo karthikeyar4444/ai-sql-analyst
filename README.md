@@ -1,13 +1,13 @@
 # AI SQL Analyst
 
 Ask business questions about **100K real e-commerce orders in plain English**. The assistant
-writes the SQL with an LLM (Google Gemini — free tier — or OpenAI), checks it is safe, runs it **read-only**, fixes its own mistakes,
+writes the SQL with an LLM (gpt-oss-120b on Groq's free tier, or Gemini / OpenAI), checks it is safe, runs it **read-only**, fixes its own mistakes,
 and returns a table, a chart and a one-line answer.
 
 Accuracy is **measured, not assumed**: a 50-question benchmark with hand-written gold SQL
 scores every answer by comparing query results.
 
-**Stack:** Python · SQLite · SQL · OpenAI API (or Gemini via its OpenAI-compatible endpoint) · Streamlit · Plotly · pytest
+**Stack:** Python · SQLite · SQL · LLM APIs (Groq / Gemini / OpenAI) · Streamlit · Plotly · pytest
 
 ---
 
@@ -21,7 +21,7 @@ scores every answer by comparing query results.
   │ Prompt = schema + example      │  db.describe_schema(): tables, columns,
   │ values + business notes        │  row counts, sample values, join hints
   └───────────────────────────────┘
-                 │  Gemini or OpenAI chat model
+                 │  LLM (gpt-oss-120b on Groq, Gemini or OpenAI)
                  ▼
   ┌───────────────────────────────┐
   │ Safety guard                   │  only ONE SELECT/WITH · blocks DROP/DELETE/
@@ -39,18 +39,30 @@ scores every answer by comparing query results.
 
 ## Results
 
-> Fill in from `eval/results/summary_api.json` after running the benchmark on the real data.
+Measured on the real Olist database (99,441 orders) with `python eval/run_eval.py`:
 
 | Metric | Value |
 |---|---|
 | Benchmark questions | 50 (16 easy · 18 medium · 16 hard) |
-| Overall execution accuracy | … % |
-| Easy / Medium / Hard | … % / … % / … % |
-| Questions fixed by self-correction | … |
-| Avg. time per question | … s |
-| Model | … |
+| **Overall execution accuracy** | **94.0 %** (47 / 50) |
+| Easy / Medium / Hard | 100 % / 83.3 % / 100 % |
+| Avg. model + query time per question | 0.88 s |
+| Tokens used for the full benchmark | 67,353 |
+| Model | `openai/gpt-oss-120b` on Groq (free tier) |
 
-<!-- Add a screenshot: ![App](docs/screenshot.png) -->
+Per-question results, generated SQL and gold SQL: [`eval/results/eval_api.csv`](eval/results/eval_api.csv).
+
+## Demo
+
+**"How has the number of orders changed month by month?"** — the assistant writes the SQL,
+draws the trend and summarises it:
+
+![Monthly orders](docs/screenshots/01_monthly_orders.png)
+
+**"Do late deliveries get worse review scores?"** — late deliveries average **2.57 stars**
+vs **4.29** for on-time deliveries (7,700 vs 88,661 reviews):
+
+![Late deliveries vs reviews](docs/screenshots/02_late_delivery_reviews.png)
 
 ## Safety
 
@@ -71,8 +83,8 @@ differ — the numbers must be right.
 
 ```bash
 python eval/run_eval.py --llm gold     # sanity check: benchmark itself scores 100%
-python eval/run_eval.py                # real run with your Gemini/OpenAI key
-python eval/run_eval.py --sleep 6      # on a free-tier API (e.g. Gemini) to stay under rate limits
+python eval/run_eval.py                # real run with the key in .env (Groq, Gemini or OpenAI)
+python eval/run_eval.py --sleep 6      # pause between questions to stay under free-tier rate limits
 ```
 
 ## Setup
@@ -86,8 +98,8 @@ pip install -r requirements.txt
 python scripts/build_db.py --csv-dir ~/Downloads/olist
 
 # 2. API key: create .env (never commit it)
-#    free Gemini key: https://aistudio.google.com/apikey  (or use an OpenAI key)
-cp .env.example .env        # then paste your key into .env (OpenAI, or a free Gemini key - see .env.example)
+#    free Groq key: https://console.groq.com/keys  (Gemini or OpenAI keys also work)
+cp .env.example .env        # then paste your key into .env
 
 # 3. run
 streamlit run app/streamlit_app.py
@@ -103,7 +115,7 @@ ai-sql-analyst/
 ├── src/aisql/
 │   ├── db.py                 # build SQLite from CSVs, read-only connection, schema text
 │   ├── safety.py             # SQL validator + row limit
-│   ├── llm.py                # Gemini / OpenAI backend with rate-limit retries
+│   ├── llm.py                # Groq / Gemini / OpenAI backends with rate-limit retries
 │   └── engine.py             # question → SQL → safe run → self-correction → answer
 ├── eval/
 │   ├── questions.py          # 50 benchmark questions + gold SQL

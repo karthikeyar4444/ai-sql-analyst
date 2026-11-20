@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from .db import connect_readonly, describe_schema
-from .llm import LLM
+from .llm import LLM, LLMError
 from .safety import UnsafeSQLError, clean_sql, validate
 
 SYSTEM_PROMPT = """You are a senior data analyst who writes SQLite queries for an e-commerce database.
@@ -71,7 +71,11 @@ class SQLAnalyst:
 
         for attempt in range(1 + self.max_retries):
             ans.attempts = attempt + 1
-            reply = self.llm.complete(messages)
+            try:
+                reply = self.llm.complete(messages)
+            except LLMError as e:
+                ans.error = str(e)
+                break
             if reply.strip().startswith("CANNOT_ANSWER"):
                 ans.error = reply.strip().split(":", 1)[-1].strip() or "question not answerable from this data"
                 break
@@ -90,8 +94,11 @@ class SQLAnalyst:
                                                          "Fix it and reply with the corrected SQL only."}]
 
         if summarize and ans.ok and len(ans.data):
-            ans.summary = self.llm.complete([{"role": "user", "content": SUMMARY_PROMPT.format(
-                question=question, table=ans.data.head(20).to_csv(index=False))}]).strip()
+            try:
+                ans.summary = self.llm.complete([{"role": "user", "content": SUMMARY_PROMPT.format(
+                    question=question, table=ans.data.head(20).to_csv(index=False))}]).strip()
+            except LLMError:
+                ans.summary = None  # the table and chart still show
         ans.seconds = round(time.time() - t0, 2)
         return ans
 
